@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import os
@@ -818,10 +819,132 @@ def plot_cross_disease_log2fc_heatmap(
 def page_home(summary_df: pd.DataFrame, comparisons_df: pd.DataFrame):
     st.title(APP_TITLE)
     st.caption(APP_SUBTITLE)
+
     c1, c2, c3 = st.columns(3)
     c1.metric("Phenotypes", f"{summary_df['phenotype'].nunique():,}")
     c2.metric("Taxa in summary", f"{summary_df[['rank', 'taxon']].drop_duplicates().shape[0]:,}")
     c3.metric("Healthy vs disease rows", f"{len(comparisons_df):,}")
+
+    st.markdown("## About GMrepo and this website")
+    st.markdown(
+        """
+GMrepo is a large, curated database of human gut microbiome data collected from many independent research studies. Each study contributes samples from individuals with known phenotypes, which describe their health status, such as Healthy, Diabetes, or Crohn disease.
+
+For each sample, GMrepo provides the composition of gut bacteria, measured as the relative abundance of different microbial taxa.
+        """
+    )
+
+    st.markdown("## What data are included in this platform")
+    st.markdown(
+        """
+This platform uses a preprocessed version of GMrepo data to enable consistent cross-study analysis.
+
+Each data point represents:
+
+- a sample from one individual
+- a phenotype describing that individual, either healthy or disease
+- a set of taxa describing the bacteria present in the gut
+
+### What is a taxon?
+
+A taxon is a group of organisms in biological classification.
+
+This platform supports two taxonomic levels:
+
+- Genus level, such as Bacteroides: a broader group of related bacteria
+- Species level, such as Bacteroides fragilis: a more specific bacterial identity within a genus
+
+Both levels are available in the application, allowing users to explore microbiome patterns at different levels of resolution.
+        """
+    )
+
+    st.markdown("### How are microbiome signals quantified?")
+    st.markdown(
+        """
+Microbiome data are summarised using both presence-based and abundance-based measures.
+
+### Prevalence: how common a taxon is
+
+Prevalence measures how frequently a taxon appears within a phenotype.
+
+- valid_runs: total number of samples for that phenotype
+- detected_runs: number of samples where the taxon is detected
+
+A taxon is considered detected if its relative abundance is at least 0.0001.
+
+Prevalence is calculated as:
+
+`prevalence = detected_runs / valid_runs`
+
+This captures how consistently a taxon appears across individuals.
+
+### Abundance: how much of the taxon is present
+
+Three complementary abundance measures are used:
+
+- Mean abundance: the average relative abundance across all samples, including zeros
+- Median abundance: the median relative abundance across all samples, including zeros
+- Mean abundance when detected: the average abundance calculated only in samples where the taxon is present
+
+### Why is median abundance important?
+
+Microbiome data are typically highly skewed and zero-inflated, meaning that a small number of samples may contain very high values while many samples contain zero abundance.
+
+Because of this, the mean can be disproportionately influenced by a small number of high-abundance observations. The median provides a more robust summary of typical abundance across the population and is therefore preferred for many analyses in this study.
+        """
+    )
+
+    st.markdown("## What this platform is designed to do")
+    st.markdown(
+        """
+Microbiome data are complex and often difficult to interpret because different analyses capture different biological signals.
+
+This platform separates microbiome–phenotype relationships into three distinct analytical perspectives:
+
+- how common a bacterium is across conditions
+- how dominant it is within a specific condition
+- whether it differs between disease and healthy states
+
+These are explored through three modules described below.
+        """
+    )
+
+    st.markdown("## How to use this platform")
+    st.markdown(
+        """
+### 1. Taxon Explorer
+
+This module answers the question: “Where does this bacterium appear, and how common is it?”
+
+- Select a taxon, either genus or species
+- View how frequently it appears across different phenotypes
+- Compare its abundance across conditions
+
+This helps identify whether a bacterium is widespread across many conditions or concentrated in specific phenotypes.
+
+### 2. Phenotype–Taxon Association
+
+This module answers the question: “What does the microbiome look like in this condition?”
+
+- Select a phenotype, such as a disease
+- View the most prevalent or abundant taxa within that phenotype
+
+This shows the composition of the microbiome for a given condition, helping you understand which bacteria dominate that environment.
+
+### 3. Phenotype Comparisons
+
+This module answers the question: “Which bacteria are different between disease and healthy states?”
+
+- Compare a disease phenotype against healthy controls
+- Identify taxa that are significantly enriched or depleted
+- Explore how these signals behave across other diseases
+
+This helps determine whether a bacterium distinguishes disease from healthy or reflects patterns shared across multiple conditions.
+
+Together, these three modules provide a structured way to interpret microbiome data, separating different types of biological signals that are often conflated in standard analyses.
+        """
+    )
+
 
 def page_taxon_explorer(summary_df: pd.DataFrame, comparisons_df: pd.DataFrame):
     st.title("Taxon Explorer")
