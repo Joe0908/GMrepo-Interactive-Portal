@@ -716,6 +716,28 @@ def page_taxon_explorer(summary_df: pd.DataFrame, comparisons_df: pd.DataFrame):
         ascending=[False, False, False],
     ).reset_index(drop=True)
 
+    st.markdown("### Phenotypes ranked for selected taxon")
+    title_map = {
+        "prevalence": f"Phenotypes ranked by prevalence for {taxon}",
+        "mean_abundance": f"Phenotypes ranked by mean abundance for {taxon}",
+        "median_abundance": f"Phenotypes ranked by median abundance for {taxon}",
+        "mean_abundance_detected_only": f"Phenotypes ranked by mean abundance when detected for {taxon}",
+    }
+    plot_metric_bar(
+        df=taxon_summary_df,
+        metric=rank_by,
+        top_n=top_n,
+        title=title_map[rank_by],
+        rank_label="phenotype",
+        log_scale=False,
+        chart_key=f"taxon_explorer_{sanitize_download_name(taxon)}_{rank}_{rank_by}_{top_n}",
+        y_col="phenotype",
+    )
+    st.caption(
+        "Each bar represents one phenotype. Prevalence is the proportion of valid runs "
+        "in which the selected taxon is detected above the abundance threshold."
+    )
+
     st.markdown("### Table view")
     display_df = taxon_summary_df[
         [
@@ -748,110 +770,7 @@ def page_taxon_explorer(summary_df: pd.DataFrame, comparisons_df: pd.DataFrame):
         mime="text/csv",
     )
 
-    st.markdown("### Phenotypes ranked for selected taxon")
-    title_map = {
-        "prevalence": f"Phenotypes ranked by prevalence for {taxon}",
-        "mean_abundance": f"Phenotypes ranked by mean abundance for {taxon}",
-        "median_abundance": f"Phenotypes ranked by median abundance for {taxon}",
-        "mean_abundance_detected_only": f"Phenotypes ranked by mean abundance when detected for {taxon}",
-    }
-    plot_metric_bar(
-        df=taxon_summary_df,
-        metric=rank_by,
-        top_n=top_n,
-        title=title_map[rank_by],
-        rank_label="phenotype",
-        log_scale=False,
-        chart_key=f"taxon_explorer_{sanitize_download_name(taxon)}_{rank}_{rank_by}_{top_n}",
-        y_col="phenotype",
-    )
-    st.caption(
-        "Each bar represents one phenotype. Prevalence is the proportion of valid runs "
-        "in which the selected taxon is detected above the abundance threshold."
-    )
 
-    st.markdown("### Healthy vs disease comparison profile")
-    c4, c5, c6, c7 = st.columns(4)
-    with c4:
-        top_n_healthy = st.number_input(
-            "Top Healthy-enriched diseases",
-            min_value=1,
-            value=10,
-            step=1,
-            key="taxon_fc_top_n_healthy",
-        )
-    with c5:
-        top_n_disease = st.number_input(
-            "Top disease-enriched diseases",
-            min_value=1,
-            value=10,
-            step=1,
-            key="taxon_fc_top_n_disease",
-        )
-    with c6:
-        q_threshold_taxon = st.number_input(
-            "Maximum FDR (q-value)",
-            min_value=0.0,
-            max_value=1.0,
-            value=0.05,
-            step=0.01,
-            key="taxon_fc_q_threshold",
-        )
-    with c7:
-        abs_log2fc_cutoff_taxon = st.number_input(
-            "Minimum absolute log2 fold change",
-            min_value=0.0,
-            value=1.0,
-            step=0.5,
-            key="taxon_fc_abs_log2fc",
-        )
-
-    taxon_fc_df = comparisons_df[
-        (comparisons_df["rank"] == rank) & (comparisons_df["taxon"] == taxon)
-    ].copy()
-    taxon_fc_df = taxon_fc_df.dropna(subset=["log2_fc", "q"]).copy()
-    taxon_fc_df["significant"] = (
-        (taxon_fc_df["q"] < q_threshold_taxon)
-        & (taxon_fc_df["abs_log2_fc"] >= abs_log2fc_cutoff_taxon)
-    )
-    taxon_fc_df = taxon_fc_df[taxon_fc_df["q"] <= q_threshold_taxon].sort_values(
-        ["abs_log2_fc", "log2_fc", "q"], ascending=[False, False, True]
-    ).reset_index(drop=True)
-
-    if taxon_fc_df.empty:
-        st.info("No Healthy vs disease comparison results were found for this taxon at the selected rank.")
-        return
-
-    display_taxon_fc_df = taxon_fc_df.rename(
-        columns={
-            "disease": "Disease",
-            "rank": "Rank",
-            "log2_fc": "log2 fold change",
-            "median_healthy": "Median abundance in Healthy",
-            "median_disease": "Median abundance in disease",
-            "mean_detected_healthy": "Mean detected abundance in Healthy",
-            "mean_detected_disease": "Mean detected abundance in disease",
-            "p": "P-value",
-            "q": "FDR (q-value)",
-            "enriched_in": "Enriched in",
-            "significant": "Significant",
-        }
-    )
-    st.dataframe(display_taxon_fc_df, use_container_width=True, hide_index=True, height=500)
-    st.download_button(
-        "Download taxon comparison table as CSV",
-        data=to_download_bytes(display_taxon_fc_df),
-        file_name=f"{sanitize_download_name(taxon)}_{rank}_log2fc_profile.csv",
-        mime="text/csv",
-    )
-    plot_taxon_log2fc_across_diseases(
-        taxon_fc_df,
-        taxon_name=taxon,
-        rank=rank,
-        top_n_healthy=top_n_healthy,
-        top_n_disease=top_n_disease,
-        chart_key="taxon_fc_plot",
-    )
 
 
 def page_phenotype_taxon_association(summary_df: pd.DataFrame):
@@ -886,6 +805,24 @@ def page_phenotype_taxon_association(summary_df: pd.DataFrame):
         st.info("No taxa are available for the selected phenotype and rank.")
         return
 
+    st.markdown("### Taxa ranked for selected phenotype")
+    title_map = {
+        "prevalence": f"{phenotype}: top taxa by prevalence",
+        "mean_abundance": f"{phenotype}: top taxa by mean abundance",
+        "median_abundance": f"{phenotype}: top taxa by median abundance",
+        "mean_abundance_detected_only": f"{phenotype}: top taxa by mean abundance when detected",
+    }
+    plot_metric_bar(
+        df=df,
+        metric=metric,
+        top_n=int(top_n),
+        title=title_map[metric],
+        rank_label=rank,
+        chart_key=f"{sanitize_download_name(phenotype)}_{rank}_{metric}",
+        y_col="taxon",
+    )
+
+    st.markdown("### Table view")
     display_df = df[
         [
             "taxon",
@@ -917,21 +854,6 @@ def page_phenotype_taxon_association(summary_df: pd.DataFrame):
         mime="text/csv",
     )
 
-    title_map = {
-        "prevalence": f"{phenotype}: top taxa by prevalence",
-        "mean_abundance": f"{phenotype}: top taxa by mean abundance",
-        "median_abundance": f"{phenotype}: top taxa by median abundance",
-        "mean_abundance_detected_only": f"{phenotype}: top taxa by mean abundance when detected",
-    }
-    plot_metric_bar(
-        df=df,
-        metric=metric,
-        top_n=int(top_n),
-        title=title_map[metric],
-        rank_label=rank,
-        chart_key=f"{sanitize_download_name(phenotype)}_{rank}_{metric}",
-        y_col="taxon",
-    )
 
 
 def page_phenotype_comparisons(comparisons_df: pd.DataFrame):
@@ -1079,3 +1001,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
