@@ -822,11 +822,6 @@ def page_home(summary_df: pd.DataFrame, comparisons_df: pd.DataFrame):
     c1.metric("Phenotypes", f"{summary_df['phenotype'].nunique():,}")
     c2.metric("Taxa in summary", f"{summary_df[['rank', 'taxon']].drop_duplicates().shape[0]:,}")
     c3.metric("Healthy vs disease rows", f"{len(comparisons_df):,}")
-    st.markdown(
-        "This version is fast because it reads precomputed summary tables instead of "
-        "recalculating from the raw run-level abundance file during interaction."
-    )
-
 
 def page_taxon_explorer(summary_df: pd.DataFrame, comparisons_df: pd.DataFrame):
     st.title("Taxon Explorer")
