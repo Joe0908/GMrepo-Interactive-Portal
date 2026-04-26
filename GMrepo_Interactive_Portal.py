@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import os
@@ -820,10 +819,13 @@ def page_home(summary_df: pd.DataFrame, comparisons_df: pd.DataFrame):
     st.title(APP_TITLE)
     st.caption(APP_SUBTITLE)
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Phenotypes", f"{summary_df['phenotype'].nunique():,}")
-    c2.metric("Taxa in summary", f"{summary_df[['rank', 'taxon']].drop_duplicates().shape[0]:,}")
-    c3.metric("Healthy vs disease rows", f"{len(comparisons_df):,}")
+    c1, c2, c3, c4 = st.columns(4)
+
+    c1.metric("Phenotypes", "233")
+    c2.metric("Genera", "2,158")
+    c3.metric("Species", "2,815")
+    c4.metric("Total taxa", "4,973")
+  
 
     st.markdown("## About GMrepo and this website")
     st.markdown(
