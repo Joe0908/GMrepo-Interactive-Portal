@@ -783,7 +783,7 @@ def plot_cross_disease_log2fc_heatmap(
             ),
         )
     )
-     fig.update_layout(
+    fig.update_layout(
         title=dict(
             text=f"Cross-disease log2 fold-change profile for taxa enriched in {selected_disease}",
             x=0.5,
