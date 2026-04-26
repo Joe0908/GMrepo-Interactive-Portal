@@ -646,6 +646,165 @@ def plot_disease_vs_healthy_log2fc(
         )
 
 
+
+def plot_cross_disease_distribution_bar(
+    distribution_df: pd.DataFrame,
+    selected_disease: str,
+    rank: str,
+    chart_key: Optional[str] = None,
+):
+    if distribution_df.empty:
+        st.info("No disease-enriched taxa are available for distribution analysis.")
+        return
+
+    plot_df = distribution_df.sort_values("Other disease phenotypes with significant enrichment", ascending=True).copy()
+    max_value = float(plot_df["Other disease phenotypes with significant enrichment"].max())
+    if max_value <= 0:
+        max_value = 1.0
+
+    fig = px.bar(
+        plot_df,
+        x="Other disease phenotypes with significant enrichment",
+        y="Taxon",
+        orientation="h",
+        color="Other disease phenotypes with significant enrichment",
+        color_continuous_scale="Blues",
+        range_color=[0, max_value],
+        text="Other disease phenotypes with significant enrichment",
+        hover_data={
+            "Taxon": True,
+            "Other disease phenotypes with significant enrichment": True,
+            f"log2FC in {selected_disease}": ":.3f",
+            f"q-value in {selected_disease}": ":.3e",
+        },
+        title=f"Cross-disease distribution of taxa enriched in {selected_disease}",
+    )
+    fig.update_traces(texttemplate="%{x:.0f}", textposition="outside", cliponaxis=False, marker_line_width=0)
+    fig.update_layout(
+        height=max(500, 34 * len(plot_df) + 160),
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        showlegend=False,
+        coloraxis_showscale=False,
+        margin=dict(l=180, r=80, t=90, b=90),
+        font=dict(family="Arial", size=13, color="black"),
+        title=dict(x=0.5, xanchor="center", font=dict(size=22, family="Arial", color="black")),
+    )
+    fig.update_xaxes(title="Number of other disease phenotypes with significant enrichment", showline=True, linewidth=1, linecolor="black", ticks="outside")
+    fig.update_yaxes(title=f"Taxon ({rank})", showline=True, linewidth=1, linecolor="black", ticks="outside", categoryorder="array", categoryarray=plot_df["Taxon"].tolist(), automargin=True)
+    render_plotly_figure_with_png_download(
+        fig,
+        filename_base=f"{sanitize_download_name(selected_disease)}_{rank}_cross_disease_distribution",
+        chart_key=chart_key,
+        png_scale=3,
+    )
+    st.caption(
+        "The distribution count excludes the selected disease itself and only counts other disease phenotypes "
+        "where the same taxon is significantly enriched in disease rather than Healthy."
+    )
+
+
+def plot_cross_disease_log2fc_heatmap(
+    heatmap_long_df: pd.DataFrame,
+    selected_taxa: list[str],
+    selected_disease: str,
+    rank: str,
+    abs_log2fc_cutoff: float,
+    top_n_diseases: int,
+    chart_key: Optional[str] = None,
+):
+    if heatmap_long_df.empty or not selected_taxa:
+        st.info("No data are available for the cross-disease heatmap.")
+        return
+
+    plot_long = heatmap_long_df.copy()
+    plot_long = plot_long[plot_long["taxon"].isin(selected_taxa)].copy()
+    plot_long = plot_long.dropna(subset=["disease", "taxon", "log2_fc"]).copy()
+    if plot_long.empty:
+        st.info("No log2 fold-change values are available for the selected taxa.")
+        return
+
+    matrix_df = plot_long.pivot_table(index="disease", columns="taxon", values="log2_fc", aggfunc="first")
+    matrix_df = matrix_df.reindex(columns=selected_taxa)
+
+    masked_df = matrix_df.where(matrix_df.abs() >= abs_log2fc_cutoff, 0.0)
+    row_score = masked_df.abs().max(axis=1).fillna(-np.inf)
+    sorted_rows = row_score.sort_values(ascending=False).index.tolist()
+    if selected_disease in sorted_rows:
+        sorted_rows.remove(selected_disease)
+        sorted_rows = [selected_disease] + sorted_rows
+    masked_df = masked_df.loc[sorted_rows]
+
+    if top_n_diseases is not None and int(top_n_diseases) > 0:
+        keep_n = int(top_n_diseases)
+        if selected_disease in masked_df.index:
+            remaining = [idx for idx in masked_df.index if idx != selected_disease]
+            masked_df = masked_df.loc[[selected_disease] + remaining[: max(0, keep_n - 1)]]
+        else:
+            masked_df = masked_df.iloc[:keep_n, :]
+
+    data = masked_df.to_numpy(dtype=float)
+    finite_vals = data[np.isfinite(data)]
+    if finite_vals.size == 0 or np.nanmax(np.abs(finite_vals)) == 0:
+        vmax = 1.0
+    else:
+        vmax = float(np.nanpercentile(np.abs(finite_vals), 95))
+        if vmax < abs_log2fc_cutoff:
+            vmax = float(abs_log2fc_cutoff)
+    vmax = max(vmax, float(abs_log2fc_cutoff), 1.0)
+
+    original_df = matrix_df.reindex(index=masked_df.index, columns=masked_df.columns)
+    customdata = np.empty(masked_df.shape, dtype=object)
+    for i, disease_name in enumerate(masked_df.index):
+        for j, taxon_name in enumerate(masked_df.columns):
+            customdata[i, j] = [
+                disease_name,
+                taxon_name,
+                original_df.iloc[i, j],
+                masked_df.iloc[i, j],
+            ]
+
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=masked_df.values,
+            x=masked_df.columns.tolist(),
+            y=masked_df.index.tolist(),
+            zmin=-vmax,
+            zmax=vmax,
+            colorscale="RdBu",
+            reversescale=True,
+            colorbar=dict(title="log2FC"),
+            customdata=customdata,
+            hovertemplate=(
+                "<b>%{customdata[0]}</b><br>"
+                "Taxon: %{customdata[1]}<br>"
+                "Original log2FC: %{customdata[2]:.3f}<br>"
+                "Displayed log2FC: %{customdata[3]:.3f}<extra></extra>"
+            ),
+        )
+    )
+    fig.update_layout(
+        title=f"Cross-disease log2 fold-change profile for taxa enriched in {selected_disease}",
+        height=max(650, 22 * len(masked_df.index) + 220),
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        margin=dict(l=260, r=100, t=110, b=180),
+        font=dict(family="Arial", size=12, color="black"),
+        title=dict(x=0.5, xanchor="center", font=dict(size=22, family="Arial", color="black")),
+    )
+    fig.update_xaxes(title=f"Taxon ({rank})", tickangle=45, showline=True, linewidth=1, linecolor="black", ticks="outside")
+    fig.update_yaxes(title="Disease phenotype", showline=True, linewidth=1, linecolor="black", ticks="outside", autorange="reversed")
+    render_plotly_figure_with_png_download(
+        fig,
+        filename_base=f"{sanitize_download_name(selected_disease)}_{rank}_cross_disease_log2fc_heatmap",
+        chart_key=chart_key,
+        png_scale=3,
+    )
+    st.caption(
+        f"Values with |log2FC| < {abs_log2fc_cutoff:.2f} are displayed as white. "
+        "Red indicates enrichment in disease phenotypes, while blue indicates enrichment in Healthy."
+    )
+
 def page_home(summary_df: pd.DataFrame, comparisons_df: pd.DataFrame):
     st.title(APP_TITLE)
     st.caption(APP_SUBTITLE)
@@ -964,6 +1123,101 @@ def page_phenotype_comparisons(comparisons_df: pd.DataFrame):
     )
 
 
+    disease_enriched_df = df[
+        (df["q"] <= q_threshold)
+        & (df["log2_fc"] >= abs_log2fc_cutoff)
+    ].copy()
+
+    if disease_enriched_df.empty:
+        st.info("No disease-enriched taxa passed the selected thresholds, so cross-disease distribution and heatmap views are not shown.")
+        return
+
+    selected_taxa = (
+        disease_enriched_df.sort_values(["log2_fc", "q"], ascending=[False, True])["taxon"]
+        .dropna()
+        .astype(str)
+        .drop_duplicates()
+        .head(int(top_n_disease))
+        .tolist()
+    )
+
+    distribution_source = comparisons_df[
+        (comparisons_df["rank"] == selected_rank)
+        & (comparisons_df["taxon"].isin(selected_taxa))
+        & (comparisons_df["disease"] != selected_disease)
+        & (comparisons_df["q"] <= q_threshold)
+        & (comparisons_df["log2_fc"] >= abs_log2fc_cutoff)
+    ].copy()
+
+    distribution_counts = (
+        distribution_source.groupby("taxon")["disease"]
+        .nunique()
+        .reindex(selected_taxa, fill_value=0)
+        .reset_index()
+        .rename(columns={"taxon": "Taxon", "disease": "Other disease phenotypes with significant enrichment"})
+    )
+
+    selected_taxa_stats = disease_enriched_df.set_index("taxon").reindex(selected_taxa)
+    distribution_counts[f"log2FC in {selected_disease}"] = selected_taxa_stats["log2_fc"].values
+    distribution_counts[f"q-value in {selected_disease}"] = selected_taxa_stats["q"].values
+    distribution_counts_counts = distribution_counts.sort_values(
+        ["Other disease phenotypes with significant enrichment", f"log2FC in {selected_disease}"],
+        ascending=[True, True],
+    ).reset_index(drop=True)
+
+    st.markdown("### Cross-disease distribution of disease-enriched taxa")
+    plot_cross_disease_distribution_bar(
+        distribution_counts_counts,
+        selected_disease=selected_disease,
+        rank=selected_rank,
+        chart_key="cross_disease_distribution_bar",
+    )
+
+    st.markdown("### Cross-disease log2FC heatmap")
+    h1, h2 = st.columns([1.2, 1.2])
+    with h1:
+        top_n_heatmap_diseases = st.number_input(
+            "Top disease phenotypes in heatmap",
+            min_value=5,
+            max_value=100,
+            value=30,
+            step=5,
+            key="cross_disease_heatmap_top_n",
+        )
+    with h2:
+        st.caption(
+            "The selected disease is kept at the top. Other phenotypes are ranked by maximum absolute log2FC across the selected taxa."
+        )
+
+    heatmap_source = comparisons_df[
+        (comparisons_df["rank"] == selected_rank)
+        & (comparisons_df["taxon"].isin(selected_taxa))
+    ].copy()
+
+    plot_cross_disease_log2fc_heatmap(
+        heatmap_source,
+        selected_taxa=selected_taxa,
+        selected_disease=selected_disease,
+        rank=selected_rank,
+        abs_log2fc_cutoff=abs_log2fc_cutoff,
+        top_n_diseases=int(top_n_heatmap_diseases),
+        chart_key="cross_disease_log2fc_heatmap",
+    )
+
+    st.markdown("### Selected disease-enriched taxa summary")
+    summary_table = distribution_counts_counts.sort_values(
+        [f"log2FC in {selected_disease}", "Other disease phenotypes with significant enrichment"],
+        ascending=[False, True],
+    ).reset_index(drop=True)
+    st.dataframe(summary_table, use_container_width=True, hide_index=True, height=420)
+    st.download_button(
+        "Download selected taxa distribution summary as CSV",
+        data=to_download_bytes(summary_table),
+        file_name=f"{sanitize_download_name(selected_disease)}_{selected_rank}_cross_disease_distribution_summary.csv",
+        mime="text/csv",
+    )
+
+
 def main():
     try:
         paths = get_data_paths()
@@ -1001,4 +1255,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
