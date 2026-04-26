@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import os
@@ -120,6 +121,11 @@ def sanitize_download_name(name: str) -> str:
 
 def to_download_bytes(df: pd.DataFrame) -> bytes:
     return df.to_csv(index=False).encode("utf-8")
+
+def format_scientific(series: pd.Series, precision: int = 2) -> pd.Series:
+    return series.apply(
+        lambda x: f"{x:.{precision}e}" if pd.notnull(x) else ""
+    )
 
 
 def generate_value_based_colors(values, start_hex: str, end_hex: str) -> list[str]:
@@ -1118,7 +1124,13 @@ def page_phenotype_comparisons(comparisons_df: pd.DataFrame):
             "significant": "Significant",
         }
     )
-    st.dataframe(display_df, use_container_width=True, hide_index=True, height=600)
+    # Format p and q values (scientific notation)
+    if "P-value" in display_df.columns:
+        display_df["P-value"] = format_scientific(display_df["P-value"])
+
+    if "FDR (q-value)" in display_df.columns:
+        display_df["FDR (q-value)"] = format_scientific(display_df["FDR (q-value)"])
+        st.dataframe(display_df, use_container_width=True, hide_index=True, height=600)
     st.download_button(
         "Download comparison table as CSV",
         data=to_download_bytes(display_df),
@@ -1213,6 +1225,10 @@ def page_phenotype_comparisons(comparisons_df: pd.DataFrame):
         [f"log2FC in {selected_disease}", "Other disease phenotypes with significant enrichment"],
         ascending=[False, True],
     ).reset_index(drop=True)
+    # Format q-values in summary table
+    q_col = f"q-value in {selected_disease}"
+    if q_col in summary_table.columns:
+        summary_table[q_col] = format_scientific(summary_table[q_col])
     st.dataframe(summary_table, use_container_width=True, hide_index=True, height=420)
     st.download_button(
         "Download selected taxa distribution summary as CSV",
