@@ -1130,7 +1130,7 @@ def page_phenotype_comparisons(comparisons_df: pd.DataFrame):
 
     if "FDR (q-value)" in display_df.columns:
         display_df["FDR (q-value)"] = format_scientific(display_df["FDR (q-value)"])
-        st.dataframe(display_df, use_container_width=True, hide_index=True, height=600)
+    st.dataframe(display_df, use_container_width=True, hide_index=True, height=600)
     st.download_button(
         "Download comparison table as CSV",
         data=to_download_bytes(display_df),
