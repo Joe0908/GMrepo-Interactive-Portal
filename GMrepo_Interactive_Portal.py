@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import os
@@ -123,9 +122,10 @@ def to_download_bytes(df: pd.DataFrame) -> bytes:
     return df.to_csv(index=False).encode("utf-8")
 
 def format_scientific(series: pd.Series, precision: int = 2) -> pd.Series:
-    return series.apply(
+    numeric = pd.to_numeric(series, errors="coerce")
+    return numeric.apply(
         lambda x: f"{x:.{precision}e}" if pd.notnull(x) else ""
-    )
+    ).astype(str)
 
 
 def generate_value_based_colors(values, start_hex: str, end_hex: str) -> list[str]:
@@ -1130,7 +1130,16 @@ def page_phenotype_comparisons(comparisons_df: pd.DataFrame):
 
     if "FDR (q-value)" in display_df.columns:
         display_df["FDR (q-value)"] = format_scientific(display_df["FDR (q-value)"])
-    st.dataframe(display_df, use_container_width=True, hide_index=True, height=600)
+    st.dataframe(
+        display_df,
+        use_container_width=True,
+        hide_index=True,
+        height=600,
+        column_config={
+            "P-value": st.column_config.TextColumn("P-value"),
+            "FDR (q-value)": st.column_config.TextColumn("FDR (q-value)"),
+        },
+    )
     st.download_button(
         "Download comparison table as CSV",
         data=to_download_bytes(display_df),
@@ -1229,7 +1238,15 @@ def page_phenotype_comparisons(comparisons_df: pd.DataFrame):
     q_col = f"q-value in {selected_disease}"
     if q_col in summary_table.columns:
         summary_table[q_col] = format_scientific(summary_table[q_col])
-    st.dataframe(summary_table, use_container_width=True, hide_index=True, height=420)
+    st.dataframe(
+        summary_table,
+        use_container_width=True,
+        hide_index=True,
+        height=420,
+        column_config={
+            q_col: st.column_config.TextColumn(q_col),
+        },
+    )
     st.download_button(
         "Download selected taxa distribution summary as CSV",
         data=to_download_bytes(summary_table),
