@@ -783,14 +783,18 @@ def plot_cross_disease_log2fc_heatmap(
             ),
         )
     )
-    fig.update_layout(
-        title=f"Cross-disease log2 fold-change profile for taxa enriched in {selected_disease}",
+     fig.update_layout(
+        title=dict(
+            text=f"Cross-disease log2 fold-change profile for taxa enriched in {selected_disease}",
+            x=0.5,
+            xanchor="center",
+            font=dict(size=22, family="Arial", color="black"),
+        ),
         height=max(650, 22 * len(masked_df.index) + 220),
         plot_bgcolor="white",
         paper_bgcolor="white",
         margin=dict(l=260, r=100, t=110, b=180),
         font=dict(family="Arial", size=12, color="black"),
-        title=dict(x=0.5, xanchor="center", font=dict(size=22, family="Arial", color="black")),
     )
     fig.update_xaxes(title=f"Taxon ({rank})", tickangle=45, showline=True, linewidth=1, linecolor="black", ticks="outside")
     fig.update_yaxes(title="Disease phenotype", showline=True, linewidth=1, linecolor="black", ticks="outside", autorange="reversed")
