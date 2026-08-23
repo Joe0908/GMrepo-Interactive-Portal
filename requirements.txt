@@ -1,6 +1,9 @@
-streamlit
-pandas
-numpy
-plotly
-pyarrow
-matplotlib
+# Application and preprocessing dependencies (Python 3.10+)
+streamlit>=1.32,<2
+pandas>=2.0,<3
+numpy>=1.24,<3
+plotly>=5.18,<7
+pyarrow>=14,<22
+matplotlib>=3.7,<4
+scipy>=1.10,<2
+statsmodels>=0.14,<1
