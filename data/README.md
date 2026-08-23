@@ -4,6 +4,11 @@ The two Parquet files in this directory are derived tables bundled so that the
 Streamlit application can run without downloading or processing the full GMrepo
 input tables.
 
+The source data were downloaded from GMrepo v3 in March 2026 as the **All
+runs**, **Relative abundances**, and **NCBI taxonomy** tables. The processed
+snapshot retained 62,184 valid runs from 616 projects across 233 phenotype
+labels.
+
 | File | Rows × columns | Size | SHA-256 |
 |---|---:|---:|---|
 | `phenotype_taxon_summary.parquet` | 97,002 × 14 | 5.1 MB | `4275bc7a5eff1ce334ee6275b87d8f4639e559a377da2c338c235e942cac4e6c` |

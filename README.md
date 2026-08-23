@@ -25,6 +25,11 @@ The current bundled release covers 233 phenotype labels and 4,973 unique taxon
 labels (2,158 genera and 2,815 species). These counts describe the processed
 tables in this repository, not the complete current GMrepo database.
 
+The source snapshot was downloaded from GMrepo v3 in March 2026. It comprised
+the GMrepo **All runs**, **Relative abundances**, and **NCBI taxonomy** tables.
+After preprocessing, 62,184 valid runs from 616 projects were retained across
+the 233 phenotype labels.
+
 ## Repository structure
 
 | Path | Purpose |
@@ -76,7 +81,7 @@ checksums, and current artifact sizes.
 ## Implemented analysis
 
 - A taxon is counted as detected when its relative abundance is at least
-  `0.0001` in the source table's abundance units.
+  `0.0001`, corresponding to 0.01% relative abundance in the source table.
 - Prevalence is `detected_runs / valid_runs` within a phenotype.
 - Mean and median relative abundance are intended to include non-detections as
   zeros; a detected-only mean is also reported.
